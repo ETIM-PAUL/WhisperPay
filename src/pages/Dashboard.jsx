@@ -1,9 +1,12 @@
-import React, { useState, Fragment } from "react";
+import React, { useState, Fragment, useEffect } from "react";
 import { FaUsers, FaMoneyBillWave, FaPlus } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { Dialog, Transition } from "@headlessui/react";
 import { useHistory } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { BrowserProvider, Contract, parseEther, formatEther } from "ethers";
+import { FactoryAddress, GroupFactoryABI } from '../utils';
+import { useAppKit, useAppKitAccount, useAppKitProvider } from '@reown/appkit/react';
 
 const dummyGroups = [
   {
@@ -29,20 +32,29 @@ const dummyGroups = [
   },
 ];
 
+const FUJI_RPC = "https://avalanche-fuji.drpc.org";
+
 export default function Dashboard() {
   const history = useHistory();
+  const { open } = useAppKit();
+  const { walletProvider } = useAppKitProvider("eip155");
+  const { address, isConnected } = useAppKitAccount();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [groups, setGroups] = useState([]);
   const [groupName, setGroupName] = useState("");
   const [targetAmount, setTargetAmount] = useState(0);
+  const [endDate, setEndDate] = useState("");
   const [groupDescription, setGroupDescription] = useState("");
   const [selectedGroup, setSelectedGroup] = useState(null);
 
-  const handleCreateGroup = () => {
+
+  const handleCreateGroup = async () => {
     try {
       setIsLoading(true);
+      
+      // Input validation
       if (groupName === "") {
         toast.error("Group name is required");
         return;
@@ -55,20 +67,80 @@ export default function Dashboard() {
         toast.error("Group description is required");
         return;
       }
+
+      // Check wallet connection
+      if (!isConnected || !address) {
+        toast.error("Please connect your wallet first");
+        open(); // Open AppKit wallet connection modal
+        return;
+      }
+
+      const ethersProvider = new BrowserProvider(walletProvider);
+      const signer = await ethersProvider.getSigner()
+
+      // Convert target amount to wei (assuming 18 decimals)
+      const targetAmountWei = parseEther(targetAmount.toString());
       
-      console.log("Creating new group:", groupName);
+      // Calculate end date (30 days from now)
+      let _endDate = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
+      if (endDate) {
+        _endDate = Math.floor(new Date(endDate).getTime() / 1000);
+      }
+      console.log("signer", signer);
+      // Create contract instance
+      const factoryContract = new Contract(
+        FactoryAddress,
+        GroupFactoryABI,
+        signer
+      );
+
+      // Show pending toast
+      const pendingToast = toast.loading("Creating group...");
+
+      // Create group transaction
+      const tx = await factoryContract.createGroup(
+        groupName,
+        groupDescription,
+        targetAmountWei,
+        endDate
+      );
+
+      // Wait for transaction confirmation
+      await tx.wait();
+
+      // Dismiss pending toast
+      toast.dismiss(pendingToast);
+      toast.success("Group created successfully!");
+
+      // Reset form and close modal
       setIsModalOpen(false);
       setGroupName("");
       setTargetAmount(0);
       setGroupDescription("");
-      setIsLoading(false);
+      
     } catch (error) {
       console.error("Error creating group:", error);
-      toast.error("Error creating group. Please try again.");
+      toast.error(error.message || "Error creating group. Please try again.");
+    } finally {
       setIsLoading(false);
     }
-    
   };
+
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      const ethersProvider = new BrowserProvider(walletProvider);
+      const signer = await ethersProvider.getSigner();
+      const factoryContract = new Contract(FactoryAddress, GroupFactoryABI, signer);  
+
+      const groups = await factoryContract.getAllGroups();
+      console.log("groups", groups);
+      setGroups(groups);
+    };
+
+    fetchGroups();
+  }, [walletProvider]);
+
 
   return (
     <div className="bg-black px-20 py-">
@@ -89,18 +161,26 @@ export default function Dashboard() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-8 my-20 mx-auto">
-          {dummyGroups.map((group) => (
+          {groups.length > 0 ? groups.map((group,index) => (
             <motion.div
-              key={group.id}
+              key={group.uniqueId}
               className="bg-gray-900 p-6 rounded-2xl shadow-md border border-gray-800 hover:shadow-lg transition"
               whileHover={{ scale: 1.02 }}
             >
-              <h3 className="text-xl font-semibold mb-2">{group.name}</h3>
-              <div className="flex items-center text-gray-300 mb-2">
-                <FaMoneyBillWave className="mr-2 text-green-400" /> {group.totalAmount}
+              <h3 className="text-xl font-semibold mb-2">{Number(group.uniqueId).toString().padStart(3, '0')} - {group.name}</h3>
+              <div className="flex items-center text-gray-300 mb-2 gap-3">
+                <span>Target: </span>
+                <span className="flex items-center">
+                  <FaMoneyBillWave className="mr-1 text-green-400" /> {Number(formatEther(group.targetAmount)).toFixed(2)}
+                </span>
               </div>
-              <div className="flex items-center text-gray-300 mb-4">
-                <FaUsers className="mr-2 text-blue-400" /> {group.contributors} Contributors
+              <div className="flex items-center text-gray-300 mb-4 gap-3">
+                <span>Contribution: </span>
+
+                {/* Please add logic to fetch each contract balance */}
+                <span className="flex items-center">
+                  <FaMoneyBillWave className="mr-1 text-green-400" /> {300.00}
+                </span>
               </div>
               <button
                 onClick={() => setSelectedGroup(group)}
@@ -109,7 +189,11 @@ export default function Dashboard() {
                 Contribute
               </button>
             </motion.div>
-          ))}
+          )) : (
+            <div className="text-start text-2xl text-gray-400">
+              No groups found
+            </div>
+          )}
         </div>
 
         {/* Modal */}
@@ -167,9 +251,10 @@ export default function Dashboard() {
               >
                 <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                   
-                  <Dialog.Title className="text-lg font-medium text-gray-900">
-                    Create New Group
+                  <Dialog.Title className="font-medium text-gray-900">
+                    <span className="text-black text-lg">Create New Group</span>
                   </Dialog.Title>
+                    <span className="text-red-500 text-sm">Please provide contributors with group unique ID display after group is created, to avoid conflicts with similar group names</span>
 
                   <div className="mt-4">
                     <label htmlFor="groupName" className="block text-sm font-medium text-gray-700 mb-2">Group Name</label>
@@ -205,6 +290,18 @@ export default function Dashboard() {
                   </div>
 
                   <div className="mt-4">
+                    <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-2">Intended Date for Event</label>
+                    <input
+                      type="datetime-local"
+                      id="endDate"
+                      className="w-full p-3 border rounded-lg text-gray-900"
+                      placeholder="End Date - default is 30 days from now"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="mt-4">
                     <label htmlFor="groupDescription" className="block text-sm font-medium text-gray-700 mb-2">Group Description</label>
                     <textarea
                       id="groupDescription"
@@ -226,14 +323,16 @@ export default function Dashboard() {
 
                   <div className="mt-6 flex justify-end gap-4">
                     <button
+                      disabled={isLoading}
                       onClick={() => setIsModalOpen(false)}
-                      className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
+                      className="bg-gray-200 disabled:bg-gray-400 disabled:cursor-not-allowed text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
                     >
                       Cancel
                     </button>
                     <button
+                      disabled={isLoading}
                       onClick={handleCreateGroup}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500"
+                      className="bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg hover:bg-blue-500"
                     >
                       Create
                     </button>

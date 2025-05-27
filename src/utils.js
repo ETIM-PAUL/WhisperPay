@@ -1,4 +1,4 @@
-export const FactoryAddress = "0x7da9d474C785ccE58B21615F64B68Da40E1E76f4";
+export const FactoryAddress = "0x7574bbB3DD7E675A162fAf52C41cA52aA8a4013e";
 
 export const GroupFactoryABI = [
     {
@@ -101,6 +101,56 @@ export const GroupFactoryABI = [
         "name": "createGroup",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getAllGroups",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "description",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "targetAmount",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "endDate",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "uniqueId",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "owner",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "createdAt",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct GroupFactory.GroupDetails[]",
+                "name": "_allGroups",
+                "type": "tuple[]"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {

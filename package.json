@@ -9,9 +9,10 @@
   "dependencies": {
     "@headlessui/react": "^2.2.4",
     "@reown/appkit": "^1.7.6",
+    "@reown/appkit-adapter-ethers": "^1.7.6",
     "@reown/appkit-adapter-ethers5": "^1.7.6",
     "@tailwindcss/forms": "^0.3.2",
-    "ethers": "5.7.2",
+    "ethers": "^6.14.3",
     "framer-motion": "^12.12.1",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
