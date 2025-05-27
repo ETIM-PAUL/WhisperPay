@@ -9,7 +9,6 @@ contract Group {
     uint256 public uniqueId;
     address public owner;
     uint256 public createdAt;
-    address public groupAddress;
 
     constructor(
         string memory _name,
@@ -18,8 +17,7 @@ contract Group {
         uint256 _endDate,
         uint256 _uniqueId,
         address _owner,
-        uint256 _createdAt,
-        address _groupAddress
+        uint256 _createdAt
     ) {
         name = _name;
         description = _description;
@@ -28,14 +26,12 @@ contract Group {
         uniqueId = _uniqueId;
         owner = _owner;
         createdAt = _createdAt;
-        groupAddress = _groupAddress;
     }
 
     function getGroupInfo() external view returns (
         string memory, string memory, uint256, uint256, uint256, address, uint256, address
     ) {
-        return (name, description, targetAmount, endDate, uniqueId, owner, createdAt, groupAddress);
+        return (name, description, targetAmount, endDate, uniqueId, owner, createdAt, address(this));
     }
-
     
 }

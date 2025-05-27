@@ -42,6 +42,7 @@ export default function Dashboard() {
 
   const handleCreateGroup = () => {
     try {
+      setIsLoading(true);
       if (groupName === "") {
         toast.error("Group name is required");
         return;
@@ -54,14 +55,17 @@ export default function Dashboard() {
         toast.error("Group description is required");
         return;
       }
+      
       console.log("Creating new group:", groupName);
       setIsModalOpen(false);
       setGroupName("");
       setTargetAmount(0);
       setGroupDescription("");
+      setIsLoading(false);
     } catch (error) {
       console.error("Error creating group:", error);
       toast.error("Error creating group. Please try again.");
+      setIsLoading(false);
     }
     
   };
