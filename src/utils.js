@@ -1,4 +1,4 @@
-export const FactoryAddress = "0x7574bbB3DD7E675A162fAf52C41cA52aA8a4013e";
+export const FactoryAddress = "0x0807840D99a4d6077bd3544C0Dd957735Bfc8AdF";
 
 export const GroupFactoryABI = [
     {
@@ -64,6 +64,11 @@ export const GroupFactoryABI = [
             {
                 "internalType": "address",
                 "name": "owner",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "groupAddress",
                 "type": "address"
             },
             {
@@ -140,6 +145,11 @@ export const GroupFactoryABI = [
                         "type": "address"
                     },
                     {
+                        "internalType": "address",
+                        "name": "groupAddress",
+                        "type": "address"
+                    },
+                    {
                         "internalType": "uint256",
                         "name": "createdAt",
                         "type": "uint256"
@@ -161,25 +171,6 @@ export const GroupFactoryABI = [
                 "internalType": "uint256",
                 "name": "",
                 "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "name": "groupIdToAddress",
-        "outputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
             }
         ],
         "stateMutability": "view",

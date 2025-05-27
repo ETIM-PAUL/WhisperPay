@@ -7,32 +7,8 @@ import { toast } from "react-hot-toast";
 import { BrowserProvider, Contract, parseEther, formatEther } from "ethers";
 import { FactoryAddress, GroupFactoryABI } from '../utils';
 import { useAppKit, useAppKitAccount, useAppKitProvider } from '@reown/appkit/react';
+import EventCountdownCalendar from "@/components/EventCountdownCalendar";
 
-const dummyGroups = [
-  {
-    id: 1,
-    name: "Team Alpha Budget",
-    totalAmount: "2,400 USDC",
-    contributors: 12,
-    description: "Monthly contributions for the Alpha team's recurring expenses, tools, and perks. All transactions are private.",
-  },
-  {
-    id: 2,
-    name: "DAO Ops Pool",
-    totalAmount: "9,120 USDC",
-    contributors: 33,
-    description: "Private contributor rewards pool managed anonymously through the DAO treasury using eERC20.",
-  },
-  {
-    id: 3,
-    name: "Marketing Launch Fund",
-    totalAmount: "4,750 USDC",
-    contributors: 18,
-    description: "A stealth campaign fund for launching WhisperPay campaigns anonymously across channels.",
-  },
-];
-
-const FUJI_RPC = "https://avalanche-fuji.drpc.org";
 
 export default function Dashboard() {
   const history = useHistory();
@@ -48,8 +24,8 @@ export default function Dashboard() {
   const [endDate, setEndDate] = useState("");
   const [groupDescription, setGroupDescription] = useState("");
   const [selectedGroup, setSelectedGroup] = useState(null);
-
-
+  const [contributionAmount, setContributionAmount] = useState(0);
+  
   const handleCreateGroup = async () => {
     try {
       setIsLoading(true);
@@ -82,11 +58,11 @@ export default function Dashboard() {
       const targetAmountWei = parseEther(targetAmount.toString());
       
       // Calculate end date (30 days from now)
-      let _endDate = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
+      let _endDate;
       if (endDate) {
         _endDate = Math.floor(new Date(endDate).getTime() / 1000);
       }
-      console.log("signer", signer);
+
       // Create contract instance
       const factoryContract = new Contract(
         FactoryAddress,
@@ -102,7 +78,7 @@ export default function Dashboard() {
         groupName,
         groupDescription,
         targetAmountWei,
-        endDate
+        _endDate
       );
 
       // Wait for transaction confirmation
@@ -126,6 +102,25 @@ export default function Dashboard() {
     }
   };
 
+  const contributeToGroup = async () => {
+    if (contributionAmount <= 0) {
+      toast.error("Contribution amount must be greater than 0");
+      return;
+    }
+    try {
+      console.log("contributionAmount", contributionAmount);
+      const ethersProvider = new BrowserProvider(walletProvider);
+      const signer = await ethersProvider.getSigner();
+      const factoryContract = new Contract(FactoryAddress, GroupFactoryABI, signer);
+
+      //add logic to handle private transfer
+
+      toast.success("Contribution successful!");
+    } catch (error) {
+      console.error("Error contributing to group:", error);
+      toast.error(error.message || "Error contributing to group. Please try again.");
+    }
+  }
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -134,7 +129,6 @@ export default function Dashboard() {
       const factoryContract = new Contract(FactoryAddress, GroupFactoryABI, signer);  
 
       const groups = await factoryContract.getAllGroups();
-      console.log("groups", groups);
       setGroups(groups);
     };
 
@@ -184,7 +178,7 @@ export default function Dashboard() {
               </div>
               <button
                 onClick={() => setSelectedGroup(group)}
-                className="bg-blue-600 px-4 py-2 rounded-xl text-sm hover:bg-blue-500 transition"
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl text-white font-semibold text-lg hover:from-blue-700 hover:to-blue-600 transition-shadow shadow-lg"
               >
                 Contribute
               </button>
@@ -200,149 +194,225 @@ export default function Dashboard() {
         <Dialog
           open={!!selectedGroup}
           onClose={() => setSelectedGroup(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md"
-        >
+          className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70 backdrop-blur-sm"
+           >
           {selectedGroup && (
-            <Dialog.Panel className="bg-gray-900 text-white p-6 rounded-2xl max-w-md w-full border border-gray-800 shadow-lg">
-              <Dialog.Title className="text-xl font-bold mb-4">{selectedGroup.name}</Dialog.Title>
-              <p className="text-gray-400 mb-4">{selectedGroup.description}</p>
-              <div className="text-sm text-gray-300 space-y-2">
-                <div>
-                  <span className="font-medium text-white">Total Amount:</span> {selectedGroup.totalAmount}
+            <Dialog.Panel className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 text-white p-8 rounded-3xl max-w-2xl w-full border border-gray-700 shadow-2xl">
+              <div className="flex flex-col md:flex-row md:space-x-10">
+                {/* Left section: Info */}
+                <div className="flex-1 space-y-6">
+                  <Dialog.Title className="text-3xl font-extrabold tracking-wide">{selectedGroup.name}</Dialog.Title>
+                  <p className="text-gray-400 text-lg leading-relaxed">{selectedGroup.description}</p>
+
+                  <div className="grid grid-cols-2 gap-6 text-sm text-gray-300">
+                    <div>
+                      <span className="font-semibold text-white block mb-1">Total Amount</span>
+                      <span className="text-xl font-mono">{Number(formatEther(selectedGroup.targetAmount)).toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-white block mb-1">Contributions</span>
+
+                      {/* using eerc useEncryptedBalance hook, get the balance of the group */}
+                      <span className="text-xl font-mono">300.00</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium text-white">Contributors:</span> {selectedGroup.contributors}
+
+                {/* Divider */}
+                <div className="hidden md:block w-px bg-gradient-to-b from-gray-700 via-gray-600 to-gray-700 rounded mx-8" />
+
+                {/* Right section: Countdown + calendar */}
+                <div className="flex-1 flex flex-col items-center justify-center space-y-6">
+                  <EventCountdownCalendar endDate={new Date(Number(selectedGroup.endDate) * 1000)} />
                 </div>
               </div>
-              <button
-                className="mt-6 bg-blue-600 w-full py-2 rounded-xl text-sm hover:bg-blue-500 transition"
-                onClick={() => setSelectedGroup(null)}
-              >
-                Close
-              </button>
+
+              <div className="my-4">
+                <label
+                  htmlFor="contributionAmount"
+                  className="block text-sm font-semibold text-gray-300 mb-2"
+                >
+                  Contribution Amount
+                </label>
+                <input
+                  type="number"
+                  id="targetAmount"
+                  className="w-full rounded-xl border border-gray-700 bg-gray-900 p-3 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  placeholder="Contribution Amount"
+                  value={contributionAmount}
+                  onChange={(e) => setContributionAmount(e.target.value)}
+                />
+              </div>
+
+              <div className="flex gap-4">
+
+                {/* Close button */}
+                <button
+                  className="w-full py-3 bg-gray-700 rounded-2xl text-white font-semibold text-lg hover:bg-gray-600 transition-shadow shadow-lg"
+                  onClick={() => setSelectedGroup(null)}
+                >
+                  Close
+                </button>
+
+                <button
+                  className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl text-white font-semibold text-lg hover:from-blue-700 hover:to-blue-600 transition-shadow shadow-lg"
+                  onClick={() => contributeToGroup()}
+                >
+                  Contribute
+                </button>
+
+              </div>
             </Dialog.Panel>
           )}
         </Dialog>
 
+
         <Transition.Root show={isModalOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={setIsModalOpen}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
-          </Transition.Child>
+          <Dialog as="div" className="relative z-50" onClose={setIsModalOpen}>
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm transition-opacity" />
+            </Transition.Child>
 
-          <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4 text-center">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                  
-                  <Dialog.Title className="font-medium text-gray-900">
-                    <span className="text-black text-lg">Create New Group</span>
-                  </Dialog.Title>
-                    <span className="text-red-500 text-sm">Please provide contributors with group unique ID display after group is created, to avoid conflicts with similar group names</span>
+            <div className="fixed inset-0 z-50 overflow-y-auto">
+              <div className="flex min-h-full items-center justify-center p-6 text-center">
+                <Transition.Child
+                  as={Fragment}
+                  enter="ease-out duration-300"
+                  enterFrom="opacity-0 scale-95"
+                  enterTo="opacity-100 scale-100"
+                  leave="ease-in duration-200"
+                  leaveFrom="opacity-100 scale-100"
+                  leaveTo="opacity-0 scale-95"
+                >
+                  <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 p-8 text-left align-middle shadow-2xl transition-all">
+                    <Dialog.Title className="text-2xl font-extrabold text-white mb-2">
+                      Create New Group
+                    </Dialog.Title>
 
-                  <div className="mt-4">
-                    <label htmlFor="groupName" className="block text-sm font-medium text-gray-700 mb-2">Group Name</label>
-                    <input
-                      type="text"
-                      id="groupName"
-                      className="w-full p-3 border rounded-lg text-gray-900"
-                      placeholder="Group Name"
-                      value={groupName}
-                      maxLength={20}
-                      onChange={(e) => {
-                        const words = e.target.value.trim().split(/\s+/);
-                        if (words.length <= 20) {
-                          setGroupName(e.target.value);
-                        } else {
-                          toast.error('Maximum 20 words allowed');
-                        }
-                      }}
-                    />
-                  </div>
+                    <p className="text-red-500 text-sm mb-6 font-medium leading-relaxed">
+                      Please provide contributors with the unique group ID displayed after creation to avoid conflicts with similar group names.
+                    </p>
 
+                    {/* Group Name */}
+                    <div className="mb-5">
+                      <label
+                        htmlFor="groupName"
+                        className="block text-sm font-semibold text-gray-300 mb-2"
+                      >
+                        Group Name
+                      </label>
+                      <input
+                        type="text"
+                        id="groupName"
+                        className="w-full rounded-xl border border-gray-700 bg-gray-900 p-3 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none transition"
+                        placeholder="Group Name"
+                        value={groupName}
+                        maxLength={20}
+                        onChange={(e) => {
+                          const words = e.target.value.trim().split(/\s+/);
+                          if (words.length <= 20) {
+                            setGroupName(e.target.value);
+                          } else {
+                            toast.error('Maximum 20 words allowed');
+                          }
+                        }}
+                      />
+                    </div>
 
-                  <div className="mt-4">
-                    <label htmlFor="targetAmount" className="block text-sm font-medium text-gray-700 mb-2">Target Amount</label>
-                    <input
-                      type="number"
-                      id="targetAmount"
-                      className="w-full p-3 border rounded-lg text-gray-900"
-                      placeholder="Target Amount"
-                      value={targetAmount}
-                      onChange={(e) => setTargetAmount(e.target.value)}
-                    />
-                  </div>
+                    {/* Target Amount */}
+                    <div className="mb-5">
+                      <label
+                        htmlFor="targetAmount"
+                        className="block text-sm font-semibold text-gray-300 mb-2"
+                      >
+                        Target Amount
+                      </label>
+                      <input
+                        type="number"
+                        id="targetAmount"
+                        className="w-full rounded-xl border border-gray-700 bg-gray-900 p-3 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none transition"
+                        placeholder="Target Amount"
+                        value={targetAmount}
+                        onChange={(e) => setTargetAmount(e.target.value)}
+                      />
+                    </div>
 
-                  <div className="mt-4">
-                    <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-2">Intended Date for Event</label>
-                    <input
-                      type="datetime-local"
-                      id="endDate"
-                      className="w-full p-3 border rounded-lg text-gray-900"
-                      placeholder="End Date - default is 30 days from now"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                    />
-                  </div>
+                    {/* End Date */}
+                    <div className="mb-5">
+                      <label
+                        htmlFor="endDate"
+                        className="block text-sm font-semibold text-gray-300 mb-2"
+                      >
+                        Intended Date for Event
+                      </label>
+                      <input
+                        type="datetime-local"
+                        id="endDate"
+                        className="w-full rounded-xl border border-gray-700 bg-gray-900 p-3 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none transition"
+                        placeholder="End Date - default is 30 days from now"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                      />
+                    </div>
 
-                  <div className="mt-4">
-                    <label htmlFor="groupDescription" className="block text-sm font-medium text-gray-700 mb-2">Group Description</label>
-                    <textarea
-                      id="groupDescription"
-                      className="w-full p-3 border rounded-lg text-gray-900"
-                      placeholder="Group Description"
-                      value={groupDescription}
-                      rows={3}
-                      maxLength={200}
-                      onChange={(e) => {
-                        const words = e.target.value.trim().split(/\s+/);
-                        if (words.length <= 200) {
-                          setGroupDescription(e.target.value);
-                        } else {
-                          toast.error('Maximum 150 words allowed');
-                        }
-                      }}
-                    />
-                  </div>
+                    {/* Group Description */}
+                    <div className="mb-8">
+                      <label
+                        htmlFor="groupDescription"
+                        className="block text-sm font-semibold text-gray-300 mb-2"
+                      >
+                        Group Description
+                      </label>
+                      <textarea
+                        id="groupDescription"
+                        rows={4}
+                        maxLength={200}
+                        className="w-full rounded-xl border border-gray-700 bg-gray-900 p-3 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none transition resize-none"
+                        placeholder="Group Description"
+                        value={groupDescription}
+                        onChange={(e) => {
+                          const words = e.target.value.trim().split(/\s+/);
+                          if (words.length <= 200) {
+                            setGroupDescription(e.target.value);
+                          } else {
+                            toast.error('Maximum 150 words allowed');
+                          }
+                        }}
+                      />
+                    </div>
 
-                  <div className="mt-6 flex justify-end gap-4">
-                    <button
-                      disabled={isLoading}
-                      onClick={() => setIsModalOpen(false)}
-                      className="bg-gray-200 disabled:bg-gray-400 disabled:cursor-not-allowed text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      disabled={isLoading}
-                      onClick={handleCreateGroup}
-                      className="bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg hover:bg-blue-500"
-                    >
-                      Create
-                    </button>
-                  </div>
-                </Dialog.Panel>
-              </Transition.Child>
+                    {/* Buttons */}
+                    <div className="flex justify-end gap-4">
+                      <button
+                        disabled={isLoading}
+                        onClick={() => setIsModalOpen(false)}
+                        className="rounded-xl bg-gray-700 px-5 py-2 text-gray-300 hover:bg-gray-600 disabled:cursor-not-allowed disabled:bg-gray-500 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        disabled={isLoading}
+                        onClick={handleCreateGroup}
+                        className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-2 font-semibold text-white hover:from-blue-700 hover:to-blue-600 disabled:cursor-not-allowed disabled:bg-gray-500 transition"
+                      >
+                        {isLoading ? "Creating..." : "Create"}
+                      </button>
+                    </div>
+                  </Dialog.Panel>
+                </Transition.Child>
+              </div>
             </div>
-          </div>
-        </Dialog>
-      </Transition.Root>
+          </Dialog>
+        </Transition.Root>
+
       </div>
 
     </div>
