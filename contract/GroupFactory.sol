@@ -14,6 +14,7 @@ contract GroupFactory {
         uint256 endDate;
         uint256 uniqueId;
         address owner;
+        address groupAddress;
         uint256 createdAt;
     }
 
@@ -43,12 +44,15 @@ contract GroupFactory {
             endDate: _endDate,
             uniqueId: groupCount,
             owner: msg.sender,
+            groupAddress: address(newGroup),
             createdAt: block.timestamp
         }));
-
 
         emit GroupCreated(msg.sender, groupAddress, groupCount);
     }
 
+    function getAllGroups() public view returns (GroupDetails[] memory _allGroups){
+        _allGroups = allGroups;
+    }
 
 }
