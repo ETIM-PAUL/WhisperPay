@@ -3,31 +3,32 @@ import ReactDOM from 'react-dom/client';
 import '@/index.css';
 import App from '@/App';
 import { Helmet } from 'react-helmet';
-import { createAppKit } from "@reown/appkit/react";
-import { EthersAdapter } from "@reown/appkit-adapter-ethers";
-import { avalanche, avalancheFuji } from "@reown/appkit/networks";
+// import { createAppKit } from "@reown/appkit/react";
+// import { EthersAdapter } from "@reown/appkit-adapter-ethers";
+// import { avalanche, avalancheFuji } from "@reown/appkit/networks";
+// import { aquaSubnet } from './utils'
 
 // 1. Get projectId
-const projectId = "4940035ce4b4813061af223f7b3c77f4";
+// const projectId = "4940035ce4b4813061af223f7b3c77f4";
 
 // 2. Create a metadata object - optional
-const metadata = {
-  name: "WhisperPay",
-  description: "Privacy-first Group Payments",
-  url: "https://whisperpay.xyz", // origin must match your domain & subdomain
-  icons: ["https://avatars.mywebsite.com/"],
-};
+// const metadata = {
+//   name: "WhisperPay",
+//   description: "Privacy-first Group Payments",
+//   url: "https://whisperpay.xyz", // origin must match your domain & subdomain
+//   icons: ["https://avatars.mywebsite.com/"],
+// };
 
 // 3. Create the AppKit instance
-createAppKit({
-  adapters: [new EthersAdapter()],
-  metadata: metadata,
-  networks: [avalanche, avalancheFuji],
-  projectId,
-  features: {
-    analytics: true, // Optional - defaults to your Cloud configuration
-  },
-});
+// createAppKit({
+//   adapters: [new EthersAdapter()],
+//   metadata: metadata,
+//   networks: [aquaSubnet],
+//   projectId,
+//   features: {
+//     analytics: true, // Optional - defaults to your Cloud configuration
+//   },
+// });
 
 // ReactDOM.render(
 //   <React.StrictMode>

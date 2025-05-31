@@ -1,14 +1,22 @@
 import React, { useEffect } from 'react';
 import { FaLock, FaUsers, FaBolt, FaCheckCircle, FaShieldAlt, FaCogs, FaMobileAlt } from "react-icons/fa";
-import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
+// import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 import { useHistory } from 'react-router-dom';
 import { motion } from "framer-motion";
+import { useAccount, useConnect } from 'wagmi';
 
 export default function Home() {
-  const { open } = useAppKit();
-  const { address, isConnected } = useAppKitAccount();
+  // const { open } = useAppKit();
+  // const { address, isConnected } = useAppKitAccount();
+  const { /*connector: activeConnector,*/ isConnected, address } = useAccount()
+  const { connect, connectors, error, isLoading, pendingConnector } =
+    useConnect()
   const history = useHistory();
-  
+
+  const connectWallet = () => connect({
+    connector: connectors[0]
+  })
+
   return (
     <div className="bg-black text-white font-sans min-h-screen">
       {/* Navbar */}
@@ -26,19 +34,20 @@ export default function Home() {
           WhisperPay enables secure, anonymous, and efficient group-based financial coordination using Web3 wallets.
         </p>
         {isConnected ?
-        <button
-          onClick={() => history.push("/dashboard")}
-          className="inline-block bg-blue-600 text-white px-6 py-3 rounded-xl text-lg hover:bg-blue-500 transition"
-        >
-          Launch App
-        </button>
-        :
-        <button
-          onClick={() => open()}
-          className="inline-block bg-blue-600 text-white px-6 py-3 rounded-xl text-lg hover:bg-blue-500 transition"
-        >
-          Connect To App
-        </button>
+          <button
+            onClick={() => history.push("/dashboard")}
+            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-xl text-lg hover:bg-blue-500 transition"
+          >
+            Launch App
+          </button>
+          :
+          <button
+            // onClick={() => open()}
+            onClick={connectWallet}
+            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-xl text-lg hover:bg-blue-500 transition"
+          >
+            Connect To App
+          </button>
         }
       </section>
 
@@ -186,7 +195,7 @@ export default function Home() {
               No forms. No banks. Connect your wallet or login with social and create your first group in seconds.
             </p>
             <button
-              onClick={() => open()}
+              onClick={connectWallet}
               className="bg-blue-900 text-white px-6 py-2 rounded hover:bg-blue-700"
             >
               Connect Wallet
