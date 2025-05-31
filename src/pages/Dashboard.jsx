@@ -1,20 +1,33 @@
-import React, { useState, Fragment, useEffect } from "react";
+import React, { useState, Fragment, useEffect, useCallback, useMemo } from "react";
 import { FaUsers, FaMoneyBillWave, FaPlus } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { Dialog, Transition } from "@headlessui/react";
 import { useHistory } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { BrowserProvider, Contract, parseEther, formatEther } from "ethers";
+import { BrowserProvider, Contract, JsonRpcSigner, parseEther, formatEther, formatUnits } from "ethers";
 import { FactoryAddress, GroupFactoryABI } from '../utils';
-import { useAppKit, useAppKitAccount, useAppKitProvider } from '@reown/appkit/react';
+// import { useAppKit, useAppKitAccount, useAppKitProvider, useAppKitNetworkCore } from '@reown/appkit/react';
 import EventCountdownCalendar from "@/components/EventCountdownCalendar";
+import { useEERC } from "@avalabs/ac-eerc-sdk"
+// import { useClient } from "../hooks/client";
+import { usePublicClient, useWalletClient, useAccount, useContractWrite } from 'wagmi'
 
+// const { publicClient, walletClient } = useClient();
+const contractAddress = "0xea026789aba4b696543ceade780ce02993076832"
+const registrarAddress = "0x36443f7ffe4c10f8016fbbcc048bb2fa285cbe1c"
+const jennygroupAddress = "0x0919D8C5eB978C3cD47255e797B21F84c0188C66"
+const jennyGroupOwner = "0xd06e922AACEe8d326102C3643f40507265f51369"
 
 export default function Dashboard() {
   const history = useHistory();
-  const { open } = useAppKit();
-  const { walletProvider } = useAppKitProvider("eip155");
-  const { address, isConnected } = useAppKitAccount();
+  // const { open } = useAppKit();
+  // AppKit hook to get the chain id
+  // const { chainId } = useAppKitNetworkCore();
+  // AppKit hook to get the wallet provider
+  // const { walletProvider } = useAppKitProvider("eip155");
+
+  // const { address, isConnected } = useAppKitAccount();
+  const { address, isConnected } = useAccount()
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -25,11 +38,105 @@ export default function Dashboard() {
   const [groupDescription, setGroupDescription] = useState("");
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [contributionAmount, setContributionAmount] = useState(0);
-  
+  // const [eercState, setEercState] = useState({
+  //   isInitialized: false,
+  //   isConverter: false,
+  //   auditorPublicKey: [],
+  //   name: "",
+  //   symbol: "",
+  //   registrarAddress: "",
+  //   isRegistered: false,
+  //   isAllDataFetched: false,
+  //   owner: "",
+  //   hasBeenAuditor: {
+  //     isChecking: false,
+  //     isAuditor: false,
+  //   },
+  //   snarkjsMode: true,
+  // });
+  // const updateEercState = useCallback(
+  //   (updates) =>
+  //     setEercState((prevState) => ({ ...prevState, ...updates })),
+  //   [],
+  // );
+
+  const publicClient = usePublicClient()
+  const walletClient = useWalletClient()
+
+  const circuitURLs = {
+    register: {
+      wasm: "../../build/registration/registration.wasm",
+      zkey: "../../build/registration/circuit_final.zkey",
+    },
+    transfer: {
+      wasm: "../../build/transfer/transfer.wasm",
+      zkey: "../../build/transfer/transfer.zkey",
+    },
+    mint: {
+      wasm: "../../build/mint/mint.wasm",
+      zkey: "../../build/mint/mint.zkey",
+    },
+    burn: {
+      wasm: "../../build/burn/burn.wasm",
+      zkey: "../../build/burn/burn.zkey",
+    },
+    withdraw: {
+      wasm: "../../build/withdraw/withdraw.wasm",
+      zkey: "../../build/withdraw/circuit_final.zkey",
+    },
+  }
+
+  const {
+    isInitialized,
+    isRegistered,
+    isConverter,
+    publicKey,
+    auditorPublicKey,
+    name,
+    symbol,
+    shouldGenerateDecryptionKey,
+    areYouAuditor,
+    hasBeenAuditor,
+    register,
+    generateDecryptionKey,
+    auditorDecrypt,
+    isAddressRegistered,
+    setContractAuditorPublicKey,
+    useEncryptedBalance,
+  } = useEERC(
+    publicClient,
+    walletClient.data,
+    contractAddress,
+    { transferURL: "../../build/transfer/transfer.wasm", multiWasmURL: '' },
+    circuitURLs,
+  );
+
+  const { parsedDecryptedBalance, decryptedBalance, privateTransfer } = useEncryptedBalance();
+  console.log("p bal", parsedDecryptedBalance, "bal", decryptedBalance)
+
+
+  const getSigner = () => {
+    const { chain, transport } = publicClient
+    const network = {
+      chainId: chain.id,
+      name: chain.name,
+      ensAddress: chain.contracts?.ensRegistry?.address,
+    }
+    const provider = new BrowserProvider(transport, network)
+    const signer = new JsonRpcSigner(provider, address);
+    return signer;
+  }
+
+  const { data, isSuccess, write: createGroup } = useContractWrite({
+    address: FactoryAddress,
+    abi: GroupFactoryABI,
+    functionName: 'createGroup',
+  })
+
   const handleCreateGroup = async () => {
     try {
       setIsLoading(true);
-      
+
       // Input validation
       if (groupName === "") {
         toast.error("Group name is required");
@@ -47,16 +154,15 @@ export default function Dashboard() {
       // Check wallet connection
       if (!isConnected || !address) {
         toast.error("Please connect your wallet first");
-        open(); // Open AppKit wallet connection modal
+        // open(); // Open AppKit wallet connection modal
         return;
       }
 
-      const ethersProvider = new BrowserProvider(walletProvider);
-      const signer = await ethersProvider.getSigner()
+      // const signer = getSigner()
 
       // Convert target amount to wei (assuming 18 decimals)
-      const targetAmountWei = parseEther(targetAmount.toString());
-      
+      const targetAmountC = Number(formatUnits(targetAmount.toString(), 2));
+
       // Calculate end date (30 days from now)
       let _endDate;
       if (endDate) {
@@ -64,36 +170,39 @@ export default function Dashboard() {
       }
 
       // Create contract instance
-      const factoryContract = new Contract(
-        FactoryAddress,
-        GroupFactoryABI,
-        signer
-      );
+      // const factoryContract = new Contract(
+      //   FactoryAddress,
+      //   GroupFactoryABI,
+      //   signer
+      // );
 
       // Show pending toast
       const pendingToast = toast.loading("Creating group...");
 
       // Create group transaction
-      const tx = await factoryContract.createGroup(
-        groupName,
-        groupDescription,
-        targetAmountWei,
-        _endDate
-      );
-
-      // Wait for transaction confirmation
-      await tx.wait();
+      createGroup({
+        args: [
+          groupName,
+          groupDescription,
+          targetAmountC,
+          _endDate
+        ],
+        from: address
+      })
+      console.log("create group data", data, "create success", isSuccess)
 
       // Dismiss pending toast
       toast.dismiss(pendingToast);
-      toast.success("Group created successfully!");
+      if (isSuccess) {
+        toast.success("Group created successfully!");
+      }
 
       // Reset form and close modal
       setIsModalOpen(false);
       setGroupName("");
       setTargetAmount(0);
       setGroupDescription("");
-      
+
     } catch (error) {
       console.error("Error creating group:", error);
       toast.error(error.message || "Error creating group. Please try again.");
@@ -109,12 +218,16 @@ export default function Dashboard() {
     }
     try {
       console.log("contributionAmount", contributionAmount);
-      const ethersProvider = new BrowserProvider(walletProvider);
-      const signer = await ethersProvider.getSigner();
-      const factoryContract = new Contract(FactoryAddress, GroupFactoryABI, signer);
-
+      // const signer = getSigner();
+      // const factoryContract = new Contract(FactoryAddress, GroupFactoryABI, signer);
+      const groupOwner = selectedGroup["owner"]
       //add logic to handle private transfer
-
+      const { txHash, receiverEncryptedAmount, senderEncryptedAmount } = await privateTransfer(groupOwner, Number(formatUnits(contributionAmount, 2)))
+      console.log(
+        "tx hash", txHash,
+        "receiverEncryptedAmount", receiverEncryptedAmount,
+        "senderEncryptedAmount", senderEncryptedAmount,
+      )
       toast.success("Contribution successful!");
     } catch (error) {
       console.error("Error contributing to group:", error);
@@ -122,24 +235,34 @@ export default function Dashboard() {
     }
   }
 
+  // useEffect(() => {
+  //   const genDecryptKey = async () => {
+  //     if (isInitialized) {
+  //       const key = await generateDecryptionKey()
+  //       console.log("decrypt key", key);
+  //     }
+  //   }
+
+  //   genDecryptKey();
+  // }, []);
   useEffect(() => {
     const fetchGroups = async () => {
-      const ethersProvider = new BrowserProvider(walletProvider);
-      const signer = await ethersProvider.getSigner();
-      const factoryContract = new Contract(FactoryAddress, GroupFactoryABI, signer);  
+      const signer = getSigner()
+      const factoryContract = new Contract(FactoryAddress, GroupFactoryABI, signer);
 
       const groups = await factoryContract.getAllGroups();
+      console.log("groups", groups)
       setGroups(groups);
     };
 
     fetchGroups();
-  }, [walletProvider]);
+  }, []);
 
 
   return (
     <div className="bg-black px-20 py-">
       <header className="flex justify-between py-6 items-center mx-auto">
-        <h1 onClick={()=>history.push("/")} className="text-2xl cursor-pointer font-bold text-white">WhisperPay</h1>
+        <h1 onClick={() => history.push("/")} className="text-2xl cursor-pointer font-bold text-white">WhisperPay</h1>
         <div className="flex gap-4">
           <appkit-button />
         </div>
@@ -150,12 +273,11 @@ export default function Dashboard() {
           <header className="text-xl font-bold text-center">Groups</header>
           <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-blue-600 px-4 py-2 rounded-md text-sm hover:bg-blue-500 transition">
             <span>Create</span>
-            <FaPlus/>
+            <FaPlus />
           </button>
         </div>
-
         <div className="grid md:grid-cols-3 gap-8 my-20 mx-auto">
-          {groups.length > 0 ? groups.map((group,index) => (
+          {groups.length > 0 ? groups.map((group, index) => (
             <motion.div
               key={group.uniqueId}
               className="bg-gray-900 p-6 rounded-2xl shadow-md border border-gray-800 hover:shadow-lg transition"
@@ -173,7 +295,7 @@ export default function Dashboard() {
 
                 {/* Please add logic to fetch each contract balance */}
                 <span className="flex items-center">
-                  <FaMoneyBillWave className="mr-1 text-green-400" /> {300.00}
+                  <FaMoneyBillWave className="mr-1 text-green-400" /> {/*{parsedDecryptedBalance}*/} {parsedDecryptedBalance} {symbol}
                 </span>
               </div>
               <button
@@ -195,7 +317,7 @@ export default function Dashboard() {
           open={!!selectedGroup}
           onClose={() => setSelectedGroup(null)}
           className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70 backdrop-blur-sm"
-           >
+        >
           {selectedGroup && (
             <Dialog.Panel className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 text-white p-8 rounded-3xl max-w-2xl w-full border border-gray-700 shadow-2xl">
               <div className="flex flex-col md:flex-row md:space-x-10">

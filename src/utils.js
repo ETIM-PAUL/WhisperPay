@@ -1,4 +1,30 @@
-export const FactoryAddress = "0x0807840D99a4d6077bd3544C0Dd957735Bfc8AdF";
+export const aquaSubnet = {
+    id: 61709,
+    name: 'Stingy Aqua',
+    nativeCurrency: {
+        decimals: 2,
+        name: 'AQUA',
+        symbol: 'AQUA',
+    },
+    rpcUrls: {
+        default: { http: ['https://subnets.avax.network/stingyaqua/testnet/rpc'] },
+    },
+    blockExplorers: {
+        default: {
+            name: 'StingyAqua Explorer',
+            url: 'https://subnets-test.avax.network/stingyaqua',
+        },
+    },
+    contracts: {
+        whisperEERC: {
+            address: '0xea026789aba4b696543ceade780ce02993076832',
+            blockCreated: 21,
+        },
+    },
+}
+
+export const FactoryAddress = "0x4102ea502301D3AE2B1BD3614d99742d4F6712db";
+// export const FactoryAddress = "0x0807840D99a4d6077bd3544C0Dd957735Bfc8AdF";
 
 export const GroupFactoryABI = [
     {
