@@ -1,20 +1,17 @@
 import React, { useState, Fragment, useEffect } from "react";
 import { FaUsers, FaMoneyBillWave, FaPlus, FaUserPlus, FaCopy } from "react-icons/fa";
 import { AnimatePresence, motion } from "framer-motion";
-import { Dialog, Transition } from "@headlessui/react";
+import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from "@headlessui/react";
 import { useHistory } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { BrowserProvider, Contract, JsonRpcSigner, parseEther, formatEther, formatUnits, toBigInt } from "ethers";
-import { FactoryAddress, GroupFactoryABI } from '../utils';
+import { formatEther, formatUnits, toBigInt } from "ethers";
+import { circuitURLs, EERCAddress, FactoryAddress, GroupFactoryABI } from '../utils';
 // import { useAppKit, useAppKitAccount, useAppKitProvider, useAppKitNetworkCore } from '@reown/appkit/react';
 import EventCountdownCalendar from "@/components/EventCountdownCalendar";
 import { useEERC } from "@avalabs/ac-eerc-sdk"
-import { usePublicClient, useWalletClient, useAccount, useContractWrite, useDisconnect } from 'wagmi'
+import { usePublicClient, useWalletClient, useAccount, useContractWrite, useDisconnect, useContractRead } from 'wagmi'
 
-const contractAddress = "0xea026789aba4b696543ceade780ce02993076832"
-const registrarAddress = "0x36443f7ffe4c10f8016fbbcc048bb2fa285cbe1c"
-const jennygroupAddress = "0x0919D8C5eB978C3cD47255e797B21F84c0188C66"
-const jennyGroupOwner = "0xd06e922AACEe8d326102C3643f40507265f51369"
+
 
 export default function Dashboard() {
   const history = useHistory();
@@ -27,12 +24,10 @@ export default function Dashboard() {
   // const { address, isConnected } = useAppKitAccount();
   const { address, isConnected } = useAccount()
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
   const [decryptedKey, setDecryptedKey] = useState("");
   const [enteredDecryptedKey, setEnteredDecryptedKey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [isContributing, setIsContributing] = useState(false);
   const [groups, setGroups] = useState([]);
   const [groupName, setGroupName] = useState("");
   const [targetAmount, setTargetAmount] = useState(0);
@@ -45,116 +40,31 @@ export default function Dashboard() {
   const publicClient = usePublicClient()
   const walletClient = useWalletClient()
 
-  const circuitURLs = {
-    register: {
-      wasm: "/wasm/registration/registration.wasm",
-      zkey: "/wasm/registration/circuit_final.zkey",
-    },
-    transfer: {
-      wasm: "/wasm/transfer/transfer.wasm",
-      zkey: "/wasm/transfer/transfer.zkey",
-    },
-    mint: {
-      wasm: "/wasm/mint/mint.wasm",
-      zkey: "/wasm/mint/mint.zkey",
-    },
-    burn: {
-      wasm: "/wasm/burn/burn.wasm",
-      zkey: "/wasm/burn/burn.zkey",
-    },
-    withdraw: {
-      wasm: "/wasm/withdraw/withdraw.wasm",
-      zkey: "/wasm/withdraw/circuit_final.zkey",
-    },
-  }
-
   const {
-    isInitialized,
     isRegistered,
-    isConverter,
-    publicKey,
-    auditorPublicKey,
-    name,
     symbol,
-    shouldGenerateDecryptionKey,
-    areYouAuditor,
-    hasBeenAuditor,
-    register,
-    generateDecryptionKey,
-    auditorDecrypt,
-    isAddressRegistered,
-    setContractAuditorPublicKey,
     useEncryptedBalance,
   } = useEERC(
     publicClient,
     walletClient.data,
-    contractAddress,
+    EERCAddress,
     {
-      transferURL: "/wasm/transfer/transfer.wasm",
-      multiWasmURL: '/wasm/mint/mint.wasm'
+      transferURL: circuitURLs.transfer.wasm,
+      multiWasmURL: circuitURLs.mint.wasm
     },
     circuitURLs,
     !!decryptedKey && decryptedKey
   );
+  const { parsedDecryptedBalance, privateTransfer } = useEncryptedBalance();
+  // console.log("parse balance", parsedDecryptedBalance)
 
-  const { parsedDecryptedBalance, decryptedBalance, privateTransfer } = useEncryptedBalance();
-  console.log("p bal", parsedDecryptedBalance, "bal", decryptedBalance)
-  console.log("is registered", isRegistered)
-  // console.log("is addr registered", isAddressRegistered())
+  const { data: allGroups, isFetched, refetch: refetchGroups } = useContractRead({
+    abi: GroupFactoryABI,
+    address: FactoryAddress,
+    functionName: "getAllGroups",
+  })
 
-
-  useEffect(() => {
-    if (!isRegistered) {
-      setShowRegisterModal(true)
-    }
-  }, [isRegistered])
-
-  const getSigner = () => {
-    const { chain, transport } = publicClient
-    const network = {
-      chainId: chain.id,
-      name: chain.name,
-      ensAddress: chain.contracts?.ensRegistry?.address,
-    }
-    const provider = new BrowserProvider(transport, network)
-    const signer = new JsonRpcSigner(provider, address);
-    return signer;
-  }
-
-  const registerWallet = async () => {
-    try {
-      setIsRegistering(true)
-      if (!isInitialized) {
-        toast.error("EERC not initialized")
-      }
-      const { key, transactionHash } = await register()
-      setDecryptedKey(key)
-      if (!!key) {
-        toast.success("Wallet registered successfully")
-      }
-      console.log("key", key, "tx hash", transactionHash)
-    } catch (error) {
-      console.error("Error registering wallet:", error);
-      setIsRegistering(false)
-      toast.error(error.message || "Error registering wallet. Please try again.");
-    } finally {
-      setIsRegistering(false)
-    }
-  }
-
-  const handleCopyKey = () => {
-    if (decryptedKey) {
-      navigator.clipboard.writeText(decryptedKey)
-        .then(() => {
-          toast.success('Key Copied'); // Show success toast
-        })
-        .catch(() => {
-          toast.error('Failed to copy key'); // Show error toast if copying fails
-        });
-    }
-  };
-
-  const { data, isSuccess, write: createGroup } = useContractWrite({
+  const { writeAsync: createGroup } = useContractWrite({
     address: FactoryAddress,
     abi: GroupFactoryABI,
     functionName: 'createGroup',
@@ -184,10 +94,8 @@ export default function Dashboard() {
         // open(); // Open AppKit wallet connection modal
       }
 
-      // const signer = getSigner()
-
       // Convert target amount to wei (assuming 18 decimals)
-      const targetAmountC = Number(formatUnits(targetAmount.toString(), 2));
+      // const targetAmountC = Number(formatUnits(targetAmount.toString(), 2));
 
       // Calculate end date (30 days from now)
       let _endDate;
@@ -195,32 +103,33 @@ export default function Dashboard() {
         _endDate = Math.floor(new Date(endDate).getTime() / 1000);
       }
 
-      // Create contract instance
-      // const factoryContract = new Contract(
-      //   FactoryAddress,
-      //   GroupFactoryABI,
-      //   signer
-      // );
-
       // Show pending toast
       const pendingToast = toast.loading("Creating group...");
 
       // Create group transaction
-      createGroup({
+      const { hash } = await createGroup({
         args: [
           groupName,
           groupDescription,
-          targetAmountC,
+          targetAmount,
           _endDate
         ],
         from: address
       })
-      console.log("create group data", data, "create success", isSuccess)
 
       // Dismiss pending toast
-      toast.dismiss(pendingToast);
-      if (isSuccess) {
+      if (!!hash) {
+        toast.dismiss(pendingToast);
         toast.success("Group created successfully!");
+        const { isFetched, data } = await refetchGroups()
+        if (!!isFetched) {
+          setGroups(data)
+        }
+        // console.log(
+        //   "---refetching---",
+        //   "is fetched", isFetched,
+        //   "data", data,
+        // )
       }
 
       // Reset form and close modal
@@ -243,36 +152,39 @@ export default function Dashboard() {
       return;
     }
     try {
-      console.log("contributionAmount", contributionAmount);
+      setIsContributing(true)
+      // console.log("contributionAmount", contributionAmount);
       // const signer = getSigner();
       // const factoryContract = new Contract(FactoryAddress, GroupFactoryABI, signer);
       const groupOwner = selectedGroup["owner"]
-      console.log(
-        "owner", groupOwner,
-        "contributionAmount bigint", toBigInt(contributionAmount),
-      )
+      // console.log(
+      //   "owner", groupOwner,
+      //   "contributionAmount bigint", toBigInt(contributionAmount),
+      // )
       //add logic to handle private transfer
       const { transactionHash, receiverEncryptedAmount, senderEncryptedAmount } = await privateTransfer(groupOwner, toBigInt(contributionAmount))
-      console.log(
-        "tx hash", transactionHash,
-        "receiverEncryptedAmount", receiverEncryptedAmount,
-        "senderEncryptedAmount", senderEncryptedAmount,
-      )
-      toast.success("Contribution successful!");
+      // console.log(
+      //   "tx hash", transactionHash,
+      //   "receiverEncryptedAmount", receiverEncryptedAmount,
+      //   "senderEncryptedAmount", senderEncryptedAmount,
+      // )
+      if (!!transactionHash) {
+        toast.success("Contribution successful!");
+        setIsContributing(false);
+      }
     } catch (error) {
-      console.error("Error contributing to group:", error);
+      // console.error("Error contributing to group:", error);
       toast.error(error.message || "Error contributing to group. Please try again.");
+      setIsContributing(false);
     }
   }
 
   useEffect(() => {
     const fetchGroups = async () => {
-      const signer = getSigner()
-      const factoryContract = new Contract(FactoryAddress, GroupFactoryABI, signer);
-
-      const groups = await factoryContract.getAllGroups();
-      console.log("groups", groups)
-      setGroups(groups);
+      if (isFetched) {
+        // console.log("all groups", allGroups, "success", isFetched)
+        setGroups(allGroups);
+      }
     };
 
     fetchGroups();
@@ -292,19 +204,14 @@ export default function Dashboard() {
           </button>
         }
       </header>
-
-      {(isRegistered && !!decryptedKey) &&
+      {!!decryptedKey &&
         <div className="min-h-screen my-10 bg-gray-950 text-white">
           <div className="w-full flex justify-between">
             <header className="text-xl font-bold text-center">Groups</header>
-            <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-blue-600 px-4 py-2 rounded-md text-sm hover:bg-blue-500 transition">
-              <span>Create</span>
+            <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-gradient-to-tr from-indigo-600 to-purple-500 text-white font-semibold px-4 py-2 rounded-md text-sm hover:from-indigo-700 hover:to-purple-600 transition">
+              <span>Create Group</span>
               <FaPlus />
             </button>
-            {/* <button onClick={registerWallet} className="flex items-center gap-2 bg-blue-600 px-4 py-2 rounded-md text-sm hover:bg-blue-500 transition">
-              <span>Register</span>
-              <FaUserPlus />
-            </button> */}
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 my-20 mx-auto">
@@ -326,17 +233,20 @@ export default function Dashboard() {
                       <span className="text-sm font-light tracking-wide text-gray-400">Target</span>
                       <span className="flex items-center font-semibold text-emerald-400 text-lg">
                         <FaMoneyBillWave className="mr-2 text-emerald-500" />
-                        {Number(formatEther(group.targetAmount)).toFixed(2)}
+                        {Number(group.targetAmount).toFixed(2)} {symbol}
                       </span>
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-light tracking-wide text-gray-400">Contribution</span>
-                      <span className="flex items-center font-semibold text-emerald-300 text-lg">
-                        <FaMoneyBillWave className="mr-2 text-emerald-400" />
-                        {parsedDecryptedBalance} {symbol}
-                      </span>
-                    </div>
+                    {
+                      address === group["owner"] && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-light tracking-wide text-gray-400">Contributions</span>
+                          <span className="flex items-center font-semibold text-emerald-300 text-lg">
+                            <FaMoneyBillWave className="mr-2 text-emerald-400" />
+                            {!!parsedDecryptedBalance && formatUnits(parsedDecryptedBalance, 2)} {symbol}
+                          </span>
+                        </div>
+                      )
+                    }
                   </div>
 
                   <button
@@ -357,7 +267,7 @@ export default function Dashboard() {
         </div>
       }
 
-      {(isRegistered && decryptedKey === "") && (
+      {!decryptedKey && (
         <AnimatePresence>
           <motion.div
             className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
@@ -406,7 +316,10 @@ export default function Dashboard() {
                   </button>
 
                   <button
-                    onClick={() => setDecryptedKey(enteredDecryptedKey)}
+                    onClick={() => {
+                      setDecryptedKey(enteredDecryptedKey);
+                      toast.success("Decryption key set!")
+                    }}
                     className="w-full disabled:opacity-50 disabled:cursor-not-allowed py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-2xl shadow-lg transition-all"
                   >
                     Save
@@ -419,72 +332,6 @@ export default function Dashboard() {
         </AnimatePresence>
       )}
 
-      {(showRegisterModal && decryptedKey === "") &&
-        <AnimatePresence>
-          <motion.div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="relative bg-gradient-to-br from-gray-800/80 to-black/90 border border-gray-700 rounded-3xl p-8 max-w-md w-full shadow-xl text-white"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 24 }}
-            >
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-transparent blur-xl opacity-20 pointer-events-none" />
-
-              <div className="relative z-10 space-y-6">
-                <h2 className="text-2xl font-bold tracking-wide text-white">
-                  You’re Not Registered
-                </h2>
-                <p className="text-sm mt-2 text-red-500 leading-relaxed">
-                  After registration, you will be provided with a decrypted key, please copy and keep it safe.
-                </p>
-
-                <div>
-                  {decryptedKey && (
-                    <div className="flex flex-col gap-2">
-                      <span>Decryption Key</span>
-                      <div className="flex items-center gap-2 bg-gray-800 p-3 rounded-lg">
-                        <span className="text-sm text-gray-300 break-all">{decryptedKey}</span>
-                        <button
-                          onClick={handleCopyKey}
-                          className="p-2 text-gray-400 hover:text-white transition"
-                          title="Copy Key"
-                        >
-                          <FaCopy />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => !!decryptedKey ? setShowRegisterModal(false) : history.push("/")}
-                    className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm text-white py-3 bg-gray-500 rounded-2xl shadow-lg transition-all"
-                  >
-                    Close
-                  </button>
-
-                  <button
-                    onClick={registerWallet}
-                    className="w-full disabled:opacity-50 disabled:cursor-not-allowed py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-2xl shadow-lg transition-all"
-                    disabled={isRegistering}
-                  >
-                    {isRegistering ? "Processing..." : "Register Now"}
-                  </button>
-
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        </AnimatePresence>
-      }
-
       {/* Modal */}
       <Dialog
         open={!!selectedGroup}
@@ -492,24 +339,28 @@ export default function Dashboard() {
         className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70 backdrop-blur-sm"
       >
         {selectedGroup && (
-          <Dialog.Panel className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 text-white p-8 rounded-3xl max-w-2xl w-full border border-gray-700 shadow-2xl">
+          <DialogPanel className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 text-white p-8 rounded-3xl max-w-2xl w-full border border-gray-700 shadow-2xl">
             <div className="flex flex-col md:flex-row md:space-x-10">
               {/* Left section: Info */}
               <div className="flex-1 space-y-6">
-                <Dialog.Title className="text-3xl font-extrabold tracking-wide">{selectedGroup.name}</Dialog.Title>
+                <DialogTitle className="text-3xl font-extrabold tracking-wide">{selectedGroup.name}</DialogTitle>
                 <p className="text-gray-400 text-lg leading-relaxed">{selectedGroup.description}</p>
 
                 <div className="grid grid-cols-2 gap-6 text-sm text-gray-300">
                   <div>
                     <span className="font-semibold text-white block mb-1">Total Amount</span>
-                    <span className="text-xl font-mono">{Number(formatEther(selectedGroup.targetAmount)).toFixed(2)}</span>
+                    <span className="text-xl font-mono">{Number(selectedGroup.targetAmount).toFixed(2)}</span>
                   </div>
-                  <div>
-                    <span className="font-semibold text-white block mb-1">Contributions</span>
+                  {
+                    address == selectedGroup["owner"] && (
+                      <div>
+                        <span className="font-semibold text-white block mb-1">Contributions</span>
 
-                    {/* using eerc useEncryptedBalance hook, get the balance of the group */}
-                    <span className="text-xl font-mono">300.00</span>
-                  </div>
+                        {/* using eerc useEncryptedBalance hook, get the balance of the group */}
+                        <span className="text-xl font-mono">{!!parsedDecryptedBalance && Number(formatUnits(parsedDecryptedBalance, 2)).toFixed(2)}</span>
+                      </div>
+                    )
+                  }
                 </div>
               </div>
 
@@ -553,18 +404,22 @@ export default function Dashboard() {
                 className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl text-white font-semibold text-lg hover:from-blue-700 hover:to-blue-600 transition-shadow shadow-lg"
                 onClick={() => contributeToGroup()}
               >
-                Contribute
+                {isContributing ? (
+                  <div className="flex justify-center items-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
+                  </div>
+                ) : ('Contribute')}
               </button>
 
             </div>
-          </Dialog.Panel>
+          </DialogPanel>
         )}
       </Dialog>
 
 
-      <Transition.Root show={isModalOpen} as={Fragment}>
+      <Transition show={isModalOpen} as={Fragment}>
         <Dialog as="div" className="relative z-50" onClose={setIsModalOpen}>
-          <Transition.Child
+          <TransitionChild
             as={Fragment}
             enter="ease-out duration-300"
             enterFrom="opacity-0"
@@ -574,11 +429,11 @@ export default function Dashboard() {
             leaveTo="opacity-0"
           >
             <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm transition-opacity" />
-          </Transition.Child>
+          </TransitionChild>
 
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-6 text-center">
-              <Transition.Child
+              <TransitionChild
                 as={Fragment}
                 enter="ease-out duration-300"
                 enterFrom="opacity-0 scale-95"
@@ -587,10 +442,10 @@ export default function Dashboard() {
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 p-8 text-left align-middle shadow-2xl transition-all">
-                  <Dialog.Title className="text-2xl font-extrabold text-white mb-2">
+                <DialogPanel className="w-full max-w-lg transform overflow-hidden rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 p-8 text-left align-middle shadow-2xl transition-all">
+                  <DialogTitle className="text-2xl font-extrabold text-white mb-2">
                     Create New Group
-                  </Dialog.Title>
+                  </DialogTitle>
 
                   <p className="text-red-500 text-sm mb-6 font-medium leading-relaxed">
                     Please provide contributors with the unique group ID displayed after creation to avoid conflicts with similar group names.
@@ -701,12 +556,12 @@ export default function Dashboard() {
                       {isLoading ? "Creating..." : "Create"}
                     </button>
                   </div>
-                </Dialog.Panel>
-              </Transition.Child>
+                </DialogPanel>
+              </TransitionChild>
             </div>
           </div>
         </Dialog>
-      </Transition.Root>
+      </Transition>
 
     </div>
   );
