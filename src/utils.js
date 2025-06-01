@@ -24,6 +24,7 @@ export const aquaSubnet = {
 }
 
 export const FactoryAddress = "0x4102ea502301D3AE2B1BD3614d99742d4F6712db";
+export const EERCAddress = "0xea026789aba4b696543ceade780ce02993076832";
 // export const FactoryAddress = "0x0807840D99a4d6077bd3544C0Dd957735Bfc8AdF";
 
 export const GroupFactoryABI = [
@@ -386,3 +387,26 @@ export const GroupABI = [
         "type": "function"
     }
 ]
+
+export const circuitURLs = {
+    register: {
+        wasm: "/wasm/registration/registration.wasm",
+        zkey: "/wasm/registration/circuit_final.zkey",
+    },
+    transfer: {
+        wasm: "/wasm/transfer/transfer.wasm",
+        zkey: "/wasm/transfer/transfer.zkey",
+    },
+    mint: {
+        wasm: "/wasm/mint/mint.wasm",
+        zkey: "/wasm/mint/mint.zkey",
+    },
+    burn: {
+        wasm: "/wasm/burn/burn.wasm",
+        zkey: "/wasm/burn/burn.zkey",
+    },
+    withdraw: {
+        wasm: "/wasm/withdraw/withdraw.wasm",
+        zkey: "/wasm/withdraw/circuit_final.zkey",
+    },
+}
