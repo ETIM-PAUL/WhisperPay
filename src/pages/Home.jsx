@@ -189,7 +189,7 @@ export default function Home() {
 
                 <div className="flex gap-4">
                   <button
-                    onClick={() => !!decryptedKey ? setShowRegisterModal(false) : history.push("/")}
+                    onClick={() => setShowRegisterModal(false)}
                     className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm text-white py-3 bg-gray-500 rounded-2xl shadow-lg transition-all"
                   >
                     Close
