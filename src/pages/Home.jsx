@@ -4,6 +4,7 @@ import { FaLock, FaUsers, FaBolt, FaCheckCircle, FaShieldAlt, FaCogs, FaMobileAl
 import { useHistory } from 'react-router-dom';
 import { motion } from "framer-motion";
 import { useAccount, useConnect } from 'wagmi';
+import { useDisconnect } from 'wagmi'
 
 export default function Home() {
   // const { open } = useAppKit();
@@ -11,6 +12,7 @@ export default function Home() {
   const { /*connector: activeConnector,*/ isConnected, address } = useAccount()
   const { connect, connectors, error, isLoading, pendingConnector } =
     useConnect()
+  const { disconnect } = useDisconnect()
   const history = useHistory();
 
   const connectWallet = () => connect({
@@ -22,9 +24,14 @@ export default function Home() {
       {/* Navbar */}
       <header className="p-6 flex justify-between items-center max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-white">WhisperPay</h1>
-        <div className="flex gap-4">
-          <appkit-button />
-        </div>
+        {isConnected &&
+          <button
+            onClick={disconnect}
+            className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition"
+          >
+            Disconnect Wallet
+          </button>
+        }
       </header>
 
       {/* Hero Section */}
