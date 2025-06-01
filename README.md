@@ -11,6 +11,12 @@ WhisperPay is a decentralized application (dApp) that enables secure, anonymous,
 
 ![Screenshot 1](./assets/home.png)
 
+![Screenshot 1](./assets/dashboard.png)
+
+![Screenshot 1](./assets/create.png)
+
+![Screenshot 1](./assets/details.png)
+
 ### 🔒 Privacy by Default
 - Private group transactions
 - Stealth address routing using eERC20
