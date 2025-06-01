@@ -1,18 +1,16 @@
-import React, { useState, Fragment, useEffect, useCallback, useMemo } from "react";
-import { FaUsers, FaMoneyBillWave, FaPlus } from "react-icons/fa";
+import React, { useState, Fragment, useEffect } from "react";
+import { FaUsers, FaMoneyBillWave, FaPlus, FaUserPlus } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { Dialog, Transition } from "@headlessui/react";
 import { useHistory } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { BrowserProvider, Contract, JsonRpcSigner, parseEther, formatEther, formatUnits } from "ethers";
+import { BrowserProvider, Contract, JsonRpcSigner, parseEther, formatEther, formatUnits, toBigInt } from "ethers";
 import { FactoryAddress, GroupFactoryABI } from '../utils';
 // import { useAppKit, useAppKitAccount, useAppKitProvider, useAppKitNetworkCore } from '@reown/appkit/react';
 import EventCountdownCalendar from "@/components/EventCountdownCalendar";
 import { useEERC } from "@avalabs/ac-eerc-sdk"
-// import { useClient } from "../hooks/client";
 import { usePublicClient, useWalletClient, useAccount, useContractWrite } from 'wagmi'
 
-// const { publicClient, walletClient } = useClient();
 const contractAddress = "0xea026789aba4b696543ceade780ce02993076832"
 const registrarAddress = "0x36443f7ffe4c10f8016fbbcc048bb2fa285cbe1c"
 const jennygroupAddress = "0x0919D8C5eB978C3cD47255e797B21F84c0188C66"
@@ -38,51 +36,30 @@ export default function Dashboard() {
   const [groupDescription, setGroupDescription] = useState("");
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [contributionAmount, setContributionAmount] = useState(0);
-  // const [eercState, setEercState] = useState({
-  //   isInitialized: false,
-  //   isConverter: false,
-  //   auditorPublicKey: [],
-  //   name: "",
-  //   symbol: "",
-  //   registrarAddress: "",
-  //   isRegistered: false,
-  //   isAllDataFetched: false,
-  //   owner: "",
-  //   hasBeenAuditor: {
-  //     isChecking: false,
-  //     isAuditor: false,
-  //   },
-  //   snarkjsMode: true,
-  // });
-  // const updateEercState = useCallback(
-  //   (updates) =>
-  //     setEercState((prevState) => ({ ...prevState, ...updates })),
-  //   [],
-  // );
 
   const publicClient = usePublicClient()
   const walletClient = useWalletClient()
 
   const circuitURLs = {
     register: {
-      wasm: "../../build/registration/registration.wasm",
-      zkey: "../../build/registration/circuit_final.zkey",
+      wasm: "/wasm/registration/registration.wasm",
+      zkey: "/wasm/registration/circuit_final.zkey",
     },
     transfer: {
-      wasm: "../../build/transfer/transfer.wasm",
-      zkey: "../../build/transfer/transfer.zkey",
+      wasm: "/wasm/transfer/transfer.wasm",
+      zkey: "/wasm/transfer/transfer.zkey",
     },
     mint: {
-      wasm: "../../build/mint/mint.wasm",
-      zkey: "../../build/mint/mint.zkey",
+      wasm: "/wasm/mint/mint.wasm",
+      zkey: "/wasm/mint/mint.zkey",
     },
     burn: {
-      wasm: "../../build/burn/burn.wasm",
-      zkey: "../../build/burn/burn.zkey",
+      wasm: "/wasm/burn/burn.wasm",
+      zkey: "/wasm/burn/burn.zkey",
     },
     withdraw: {
-      wasm: "../../build/withdraw/withdraw.wasm",
-      zkey: "../../build/withdraw/circuit_final.zkey",
+      wasm: "/wasm/withdraw/withdraw.wasm",
+      zkey: "/wasm/withdraw/circuit_final.zkey",
     },
   }
 
@@ -107,12 +84,17 @@ export default function Dashboard() {
     publicClient,
     walletClient.data,
     contractAddress,
-    { transferURL: "../../build/transfer/transfer.wasm", multiWasmURL: '' },
+    {
+      transferURL: "/wasm/transfer/transfer.wasm",
+      multiWasmURL: '/wasm/mint/mint.wasm'
+    },
     circuitURLs,
   );
 
   const { parsedDecryptedBalance, decryptedBalance, privateTransfer } = useEncryptedBalance();
   console.log("p bal", parsedDecryptedBalance, "bal", decryptedBalance)
+  console.log("is registered", isRegistered)
+  // console.log("is addr registered", isAddressRegistered())
 
 
   const getSigner = () => {
@@ -125,6 +107,14 @@ export default function Dashboard() {
     const provider = new BrowserProvider(transport, network)
     const signer = new JsonRpcSigner(provider, address);
     return signer;
+  }
+
+  const registerWallet = async () => {
+    if (!isInitialized) {
+      toast.error("EERC not initialized")
+    }
+    const { key, transactionHash } = await register()
+    console.log("key", key, "tx hash", transactionHash)
   }
 
   const { data, isSuccess, write: createGroup } = useContractWrite({
@@ -221,10 +211,14 @@ export default function Dashboard() {
       // const signer = getSigner();
       // const factoryContract = new Contract(FactoryAddress, GroupFactoryABI, signer);
       const groupOwner = selectedGroup["owner"]
-      //add logic to handle private transfer
-      const { txHash, receiverEncryptedAmount, senderEncryptedAmount } = await privateTransfer(groupOwner, Number(formatUnits(contributionAmount, 2)))
       console.log(
-        "tx hash", txHash,
+        "owner", groupOwner,
+        "contributionAmount bigint", toBigInt(contributionAmount),
+      )
+      //add logic to handle private transfer
+      const { transactionHash, receiverEncryptedAmount, senderEncryptedAmount } = await privateTransfer(groupOwner, toBigInt(contributionAmount))
+      console.log(
+        "tx hash", transactionHash,
         "receiverEncryptedAmount", receiverEncryptedAmount,
         "senderEncryptedAmount", senderEncryptedAmount,
       )
@@ -235,16 +229,6 @@ export default function Dashboard() {
     }
   }
 
-  // useEffect(() => {
-  //   const genDecryptKey = async () => {
-  //     if (isInitialized) {
-  //       const key = await generateDecryptionKey()
-  //       console.log("decrypt key", key);
-  //     }
-  //   }
-
-  //   genDecryptKey();
-  // }, []);
   useEffect(() => {
     const fetchGroups = async () => {
       const signer = getSigner()
@@ -274,6 +258,10 @@ export default function Dashboard() {
           <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-blue-600 px-4 py-2 rounded-md text-sm hover:bg-blue-500 transition">
             <span>Create</span>
             <FaPlus />
+          </button>
+          <button onClick={registerWallet} className="flex items-center gap-2 bg-blue-600 px-4 py-2 rounded-md text-sm hover:bg-blue-500 transition">
+            <span>Register</span>
+            <FaUserPlus />
           </button>
         </div>
         <div className="grid md:grid-cols-3 gap-8 my-20 mx-auto">
