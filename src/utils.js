@@ -23,7 +23,7 @@ export const aquaSubnet = {
     },
 }
 
-export const FactoryAddress = "0xF3E82e1F359348A97B61f84c44eDDd133Dd379BF";
+export const FactoryAddress = "0x271f063684Ed7e903D45829a2616dfbB38189c5B";
 export const EERCAddress = "0xea026789aba4b696543ceade780ce02993076832";
 // export const FactoryAddress = "0x0807840D99a4d6077bd3544C0Dd957735Bfc8AdF";
 

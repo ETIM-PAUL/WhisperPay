@@ -6,7 +6,6 @@ import { useHistory } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { formatEther, formatUnits, toBigInt } from "ethers";
 import { circuitURLs, EERCAddress, FactoryAddress, GroupFactoryABI } from '../utils';
-// import { useAppKit, useAppKitAccount, useAppKitProvider, useAppKitNetworkCore } from '@reown/appkit/react';
 import EventCountdownCalendar from "@/components/EventCountdownCalendar";
 import { useEERC } from "@avalabs/ac-eerc-sdk"
 import { usePublicClient, useWalletClient, useAccount, useContractWrite, useDisconnect, useContractRead } from 'wagmi'
@@ -15,18 +14,15 @@ import { usePublicClient, useWalletClient, useAccount, useContractWrite, useDisc
 
 export default function Dashboard() {
   const history = useHistory();
-  // const { open } = useAppKit();
-  // AppKit hook to get the chain id
-  // const { chainId } = useAppKitNetworkCore();
-  // AppKit hook to get the wallet provider
-  // const { walletProvider } = useAppKitProvider("eip155");
 
-  // const { address, isConnected } = useAppKitAccount();
   const { address, isConnected } = useAccount()
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [decryptedKey, setDecryptedKey] = useState("");
+  const [showContributions, setShowContributions] = useState(false);
   const [enteredDecryptedKey, setEnteredDecryptedKey] = useState("");
+  const [decryptedKey, setDecryptedKey] = useState("");
+  const [allTransactions, setAllTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchedTransactions, setFetchedTransactions] = useState(false);
   const [isContributing, setIsContributing] = useState(false);
   const [groups, setGroups] = useState([]);
   const [groupName, setGroupName] = useState("");
@@ -41,9 +37,10 @@ export default function Dashboard() {
   const walletClient = useWalletClient()
 
   const {
-    isRegistered,
     symbol,
-    decimals,
+    areYouAuditor,
+    hasBeenAuditor,
+    auditorDecrypt,
     useEncryptedBalance,
   } = useEERC(
     publicClient,
@@ -57,7 +54,16 @@ export default function Dashboard() {
     !!decryptedKey && decryptedKey
   );
   const { decryptedBalance, parsedDecryptedBalance, privateTransfer } = useEncryptedBalance();
-  console.log("parse balance", parsedDecryptedBalance)
+  console.log("areYouAuditor", areYouAuditor, "hasBeenAuditor", hasBeenAuditor)
+
+  const fetchTransactions = async () => {
+    const data = await auditorDecrypt();
+    setTimeout(async () => {
+      setAllTransactions(data)
+      setFetchedTransactions(true)
+      console.log("data", data)
+    }, 1000)
+  }
 
   const { data: allGroups, isFetched, refetch: refetchGroups } = useContractRead({
     abi: GroupFactoryABI,
@@ -89,14 +95,6 @@ export default function Dashboard() {
         return;
       }
 
-      // Check wallet connection
-      if (!isRegistered) {
-        toast.error("Please connect your wallet first");
-        // open(); // Open AppKit wallet connection modal
-      }
-
-      // Convert target amount to wei (assuming 18 decimals)
-      // const targetAmountC = Number(formatUnits(targetAmount.toString(), 2));
 
       // Calculate end date (30 days from now)
       let _endDate;
@@ -126,11 +124,6 @@ export default function Dashboard() {
         if (!!isFetched) {
           setGroups(data)
         }
-        // console.log(
-        //   "---refetching---",
-        //   "is fetched", isFetched,
-        //   "data", data,
-        // )
       }
 
       // Reset form and close modal
@@ -154,21 +147,10 @@ export default function Dashboard() {
     }
     try {
       setIsContributing(true)
-      // console.log("contributionAmount", contributionAmount);
-      // const signer = getSigner();
-      // const factoryContract = new Contract(FactoryAddress, GroupFactoryABI, signer);
       const groupOwner = selectedGroup["owner"]
-      // console.log(
-      //   "owner", groupOwner,
-      //   "contributionAmount bigint", toBigInt(contributionAmount),
-      // )
       //add logic to handle private transfer
       const { transactionHash, receiverEncryptedAmount, senderEncryptedAmount } = await privateTransfer(groupOwner, toBigInt(contributionAmount * 100))
-      // console.log(
-      //   "tx hash", transactionHash,
-      //   "receiverEncryptedAmount", receiverEncryptedAmount,
-      //   "senderEncryptedAmount", senderEncryptedAmount,
-      // )
+
       if (!!transactionHash) {
         toast.success("Contribution successful!");
         setIsContributing(false);
@@ -176,7 +158,6 @@ export default function Dashboard() {
         setSelectedGroup(null)
       }
     } catch (error) {
-      // console.error("Error contributing to group:", error);
       toast.error(error.message || "Error contributing to group. Please try again.");
       setIsContributing(false);
     }
@@ -270,12 +251,21 @@ export default function Dashboard() {
                     }
                   </div>
 
-                  <button
-                    onClick={() => setSelectedGroup(group)}
-                    className="mt-8 w-full py-3 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 text-white font-semibold text-lg shadow-md hover:shadow-xl hover:from-indigo-700 hover:to-purple-600 transition-all duration-300 focus:outline-none"
-                  >
-                    Contribute
-                  </button>
+                  {areYouAuditor ?
+                    <button
+                      onClick={() => { setShowContributions(true); fetchTransactions(); setSelectedGroup(group) }}
+                      className="mt-8 w-full py-3 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 text-white font-semibold text-lg shadow-md hover:shadow-xl hover:from-indigo-700 hover:to-purple-600 transition-all duration-300 focus:outline-none"
+                    >
+                      View Contributions
+                    </button>
+                    :
+                    <button
+                      onClick={() => setSelectedGroup(group)}
+                      className="mt-8 w-full py-3 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 text-white font-semibold text-lg shadow-md hover:shadow-xl hover:from-indigo-700 hover:to-purple-600 transition-all duration-300 focus:outline-none"
+                    >
+                      Contribute
+                    </button>
+                  }
                 </div>
               </motion.div>
 
@@ -310,9 +300,6 @@ export default function Dashboard() {
               <h2 className="text-2xl font-bold tracking-wide text-white">
                 Please input your decryption key
               </h2>
-              {/* <p className="text-sm text-gray-300 leading-relaxed">
-                    You need to be registered before participating. Click the button below to begin registration.
-                  </p> */}
               <p className="text-sm mt-2 text-red-500 leading-relaxed">
                 Please ensure you have the correct decryption key, as this will be used to decrypt your group balance
               </p>
@@ -351,9 +338,97 @@ export default function Dashboard() {
         </motion.div>
       )}
 
+      {showContributions && (
+        <motion.div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="relative bg-gradient-to-br from-gray-800/80 to-black/90 border border-gray-700 rounded-3xl p-8 max-w-md w-full shadow-xl text-white"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 24 }}
+          >
+            {/* Glow Layer */}
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-transparent blur-xl opacity-20 pointer-events-none" />
+
+            {/* Content */}
+            <div className="relative z-10 space-y-6">
+              <h2 className="text-2xl font-bold tracking-wide text-white">
+                Contributions
+              </h2>
+
+              {
+                fetchedTransactions && allTransactions.filter(tx => tx?.receiver === selectedGroup.owner).length > 0 &&
+                <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                  {/* Sample transactions - replace with actual data */}
+                  {allTransactions.filter(tx => tx?.receiver === selectedGroup.owner).map((tx, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300"
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                            <FaCoins className="text-white text-sm" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-400">From</p>
+                            <p className="text-white font-mono">
+                              {`${tx.sender.slice(0, 4)}...${tx.sender.slice(-4)}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-400">Amount</p>
+                          <p className="text-emerald-400 font-semibold">{formatUnits(tx.amount, 2)} WHISP</p>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex justify-between items-center text-sm">
+                        {/* <p className="text-gray-500">
+                        {tx.timestamp.toLocaleDateString()} {tx.timestamp.toLocaleTimeString()}
+                      </p> */}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              }
+              {
+                fetchedTransactions && allTransactions.filter(tx => tx?.receiver === selectedGroup.owner).length === 0 &&
+                <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                  <span className="text-gray-400 text-lg text-center">No contributions yet</span>
+                </div>
+              }
+              {
+                !fetchedTransactions &&
+                <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                  <span className="text-gray-400 text-lg text-center">Fetching transactions...</span>
+                </div>
+              }
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowContributions(false)}
+                  className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm text-white py-3 bg-gray-500 rounded-2xl shadow-lg transition-all"
+                >
+                  Close
+                </button>
+
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
       {/* Modal */}
       <Dialog
-        open={!!selectedGroup}
+        open={!!selectedGroup && !areYouAuditor}
         onClose={() => setSelectedGroup(null)}
         className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-70 backdrop-blur-sm"
       >
@@ -367,7 +442,7 @@ export default function Dashboard() {
 
                 <div className="grid grid-cols-2 gap-6 text-sm text-gray-300">
                   <div>
-                    <span className="font-semibold text-white block mb-1">Total Amount</span>
+                    <span className="font-semibold text-white block mb-1">Target Amount</span>
                     <span className="text-xl font-mono">{Number(selectedGroup.targetAmount).toFixed(2)}</span>
                   </div>
                   {
@@ -434,7 +509,6 @@ export default function Dashboard() {
           </DialogPanel>
         )}
       </Dialog>
-
 
       <Transition show={isModalOpen} as={Fragment}>
         <Dialog as="div" className="relative z-50" onClose={setIsModalOpen}>
