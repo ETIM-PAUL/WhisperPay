@@ -47,7 +47,7 @@ export default function Dashboard() {
     useEncryptedBalance,
   } = useEERC(
     publicClient,
-    walletClient.data,
+    !!walletClient && walletClient.data,
     EERCAddress,
     {
       transferURL: circuitURLs.transfer.wasm,
