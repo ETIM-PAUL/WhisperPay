@@ -9,24 +9,14 @@ export default defineConfig(({ mode }) => {
       alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],
     },
     define: {
-      'process.env': {}
+      'process.env': {},
+      // Force development mode for specific libraries that might use _reverse
+      __DEV__: true,
     },
     plugins: [reactRefresh(), nodePolyfills()],
     build: {
       target: ['es2020', 'chrome90', 'firefox90', 'safari15'],
-      minify: 'terser',
-      terserOptions: {
-        keep_classnames: true,
-        keep_fnames: true,
-        mangle: {
-          keep_fnames: true,
-          keep_classnames: true
-        },
-        compress: {
-          keep_fnames: true,
-          keep_classnames: true
-        }
-      },
+      minify: false, // Disable minification completely to preserve all function names
       rollupOptions: {
         output: {
           manualChunks: {
