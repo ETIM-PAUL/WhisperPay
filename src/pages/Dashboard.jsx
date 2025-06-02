@@ -1,6 +1,6 @@
 import React, { useState, Fragment, useEffect } from "react";
-import { FaUsers, FaMoneyBillWave, FaPlus, FaUserPlus, FaCopy } from "react-icons/fa";
-import { AnimatePresence, motion } from "framer-motion";
+import { FaUsers, FaMoneyBillWave, FaPlus, FaUserPlus, FaCopy, FaCoins } from "react-icons/fa";
+import { motion } from "framer-motion";
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from "@headlessui/react";
 import { useHistory } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -43,6 +43,7 @@ export default function Dashboard() {
   const {
     isRegistered,
     symbol,
+    decimals,
     useEncryptedBalance,
   } = useEERC(
     publicClient,
@@ -55,8 +56,8 @@ export default function Dashboard() {
     circuitURLs,
     !!decryptedKey && decryptedKey
   );
-  const { parsedDecryptedBalance, privateTransfer } = useEncryptedBalance();
-  // console.log("parse balance", parsedDecryptedBalance)
+  const { decryptedBalance, parsedDecryptedBalance, privateTransfer } = useEncryptedBalance();
+  console.log("parse balance", parsedDecryptedBalance)
 
   const { data: allGroups, isFetched, refetch: refetchGroups } = useContractRead({
     abi: GroupFactoryABI,
@@ -162,7 +163,7 @@ export default function Dashboard() {
       //   "contributionAmount bigint", toBigInt(contributionAmount),
       // )
       //add logic to handle private transfer
-      const { transactionHash, receiverEncryptedAmount, senderEncryptedAmount } = await privateTransfer(groupOwner, toBigInt(contributionAmount))
+      const { transactionHash, receiverEncryptedAmount, senderEncryptedAmount } = await privateTransfer(groupOwner, toBigInt(contributionAmount * 100))
       // console.log(
       //   "tx hash", transactionHash,
       //   "receiverEncryptedAmount", receiverEncryptedAmount,
@@ -171,6 +172,8 @@ export default function Dashboard() {
       if (!!transactionHash) {
         toast.success("Contribution successful!");
         setIsContributing(false);
+        setContributionAmount(0);
+        setSelectedGroup(null)
       }
     } catch (error) {
       // console.error("Error contributing to group:", error);
@@ -182,7 +185,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchGroups = async () => {
       if (isFetched) {
-        // console.log("all groups", allGroups, "success", isFetched)
+        console.log("all groups", allGroups, "success", isFetched)
         setGroups(allGroups);
       }
     };
@@ -196,12 +199,30 @@ export default function Dashboard() {
       <header className="flex justify-between py-6 items-center mx-auto">
         <h1 onClick={() => history.push("/")} className="text-2xl cursor-pointer font-bold text-white">WhisperPay</h1>
         {isConnected &&
-          <button
-            onClick={disconnect}
-            className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition"
-          >
-            Disconnect Wallet
-          </button>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between">
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                className="p-2 bg-gradient-to-tr from-indigo-600 to-purple-500 rounded-md flex gap-2 items-center justify-center"
+              >
+                <p className="text-xl font-bold text-white">
+                  {!!parsedDecryptedBalance ? formatUnits(parsedDecryptedBalance, 2) : 0} <span className="text-white text-sm">WHISP</span>
+                </p>
+                <FaCoins className="text-lg text-yellow-400" />
+              </motion.div>
+            </div>
+
+
+            <button
+              onClick={() => {
+                disconnect()
+                history.push("/")
+              }}
+              className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition"
+            >
+              Disconnect Wallet
+            </button>
+          </div>
         }
       </header>
       {!!decryptedKey &&
@@ -268,68 +289,66 @@ export default function Dashboard() {
       }
 
       {!decryptedKey && (
-        <AnimatePresence>
+        <motion.div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <motion.div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            className="relative bg-gradient-to-br from-gray-800/80 to-black/90 border border-gray-700 rounded-3xl p-8 max-w-md w-full shadow-xl text-white"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 24 }}
           >
-            <motion.div
-              className="relative bg-gradient-to-br from-gray-800/80 to-black/90 border border-gray-700 rounded-3xl p-8 max-w-md w-full shadow-xl text-white"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 24 }}
-            >
-              {/* Glow Layer */}
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-transparent blur-xl opacity-20 pointer-events-none" />
+            {/* Glow Layer */}
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-transparent blur-xl opacity-20 pointer-events-none" />
 
-              {/* Content */}
-              <div className="relative z-10 space-y-6">
-                <h2 className="text-2xl font-bold tracking-wide text-white">
-                  Please input your decryption key
-                </h2>
-                {/* <p className="text-sm text-gray-300 leading-relaxed">
+            {/* Content */}
+            <div className="relative z-10 space-y-6">
+              <h2 className="text-2xl font-bold tracking-wide text-white">
+                Please input your decryption key
+              </h2>
+              {/* <p className="text-sm text-gray-300 leading-relaxed">
                     You need to be registered before participating. Click the button below to begin registration.
                   </p> */}
-                <p className="text-sm mt-2 text-red-500 leading-relaxed">
-                  Please ensure you have the correct decryption key, as this will be used to decrypt your group balance
-                </p>
+              <p className="text-sm mt-2 text-red-500 leading-relaxed">
+                Please ensure you have the correct decryption key, as this will be used to decrypt your group balance
+              </p>
 
-                <div>
-                  <input
-                    type="text"
-                    className="w-full rounded-xl border border-gray-700 bg-gray-900 p-3 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none transition"
-                    placeholder="Decryption Key"
-                    value={enteredDecryptedKey}
-                    onChange={(e) => setEnteredDecryptedKey(e.target.value)}
-                  />
-                </div>
-
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => history.push("/")}
-                    className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm text-white py-3 bg-gray-500 rounded-2xl shadow-lg transition-all"
-                  >
-                    Close
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setDecryptedKey(enteredDecryptedKey);
-                      toast.success("Decryption key set!")
-                    }}
-                    className="w-full disabled:opacity-50 disabled:cursor-not-allowed py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-2xl shadow-lg transition-all"
-                  >
-                    Save
-                  </button>
-
-                </div>
+              <div>
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-gray-700 bg-gray-900 p-3 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  placeholder="Decryption Key"
+                  value={enteredDecryptedKey}
+                  onChange={(e) => setEnteredDecryptedKey(e.target.value)}
+                />
               </div>
-            </motion.div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => history.push("/")}
+                  className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm text-white py-3 bg-gray-500 rounded-2xl shadow-lg transition-all"
+                >
+                  Close
+                </button>
+
+                <button
+                  onClick={() => {
+                    setDecryptedKey(enteredDecryptedKey);
+                    toast.success("Decryption key set!")
+                  }}
+                  className="w-full disabled:opacity-50 disabled:cursor-not-allowed py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-2xl shadow-lg transition-all"
+                >
+                  Save
+                </button>
+
+              </div>
+            </div>
           </motion.div>
-        </AnimatePresence>
+        </motion.div>
       )}
 
       {/* Modal */}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FaLock, FaUsers, FaBolt, FaCheckCircle, FaShieldAlt, FaCogs, FaMobileAlt, FaCopy } from "react-icons/fa";
 // import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 import { useHistory } from 'react-router-dom';
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { usePublicClient, useWalletClient, useAccount, useConnect, useDisconnect } from 'wagmi';
 import { useEERC } from "@avalabs/ac-eerc-sdk"
 import { circuitURLs, EERCAddress } from '../utils';
@@ -15,6 +15,7 @@ export default function Home() {
   // const [enteredDecryptedKey, setEnteredDecryptedKey] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showEnterDecryptedKeyModal, setShowEnterDecryptedKeyModal] = useState(false);
   const { isConnected } = useAccount()
   const { connect, connectors } =
     useConnect()
@@ -22,10 +23,12 @@ export default function Home() {
   const history = useHistory();
   const publicClient = usePublicClient()
   const walletClient = useWalletClient()
+  const [enteredDecryptedKey, setEnteredDecryptedKey] = useState("");
+
 
   const {
     isInitialized,
-    // isRegistered,
+    isRegistered,
     register,
   } = useEERC(
     publicClient,
@@ -77,6 +80,8 @@ export default function Home() {
     }
   };
 
+  console.log("isRegistered", isRegistered)
+
   return (
     <div className="bg-black text-white font-sans min-h-screen">
       {/* Navbar */}
@@ -101,7 +106,7 @@ export default function Home() {
         {isConnected ?
           <button
             onClick={() => {
-              if (!!decryptedKey) {
+              if (isRegistered) {
                 history.push("/dashboard")
               } else {
                 setShowRegisterModal(true)
@@ -122,93 +127,90 @@ export default function Home() {
         }
       </section>
       {!!decryptedKey && (
-        <AnimatePresence>
+        <motion.div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <motion.div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            className="relative bg-gradient-to-br from-gray-800/80 to-black/90 border border-gray-700 rounded-3xl p-8 max-w-md w-full shadow-xl text-white"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 24 }}
           >
-            <motion.div
-              className="relative bg-gradient-to-br from-gray-800/80 to-black/90 border border-gray-700 rounded-3xl p-8 max-w-md w-full shadow-xl text-white"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 24 }}
-            >
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-transparent blur-xl opacity-20 pointer-events-none" />
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-transparent blur-xl opacity-20 pointer-events-none" />
 
-              <div className="relative z-10 space-y-6">
-                <div>
-                  {!!decryptedKey && (
-                    <div className="flex flex-col gap-2">
-                      <span>Decryption Key</span>
-                      <div className="flex items-center gap-2 bg-gray-800 p-3 rounded-lg">
-                        <span className="text-sm text-gray-300 break-all">{decryptedKey}</span>
-                        <button
-                          onClick={handleCopyKey}
-                          className="p-2 text-gray-400 hover:text-white transition"
-                          title="Copy Key"
-                        >
-                          <FaCopy />
-                        </button>
-                      </div>
+            <div className="relative z-10 space-y-6">
+              <div>
+                {!!decryptedKey && (
+                  <div className="flex flex-col gap-2">
+                    <span>Decryption Key</span>
+                    <div className="flex items-center gap-2 bg-gray-800 p-3 rounded-lg">
+                      <span className="text-sm text-gray-300 break-all">{decryptedKey}</span>
+                      <button
+                        onClick={handleCopyKey}
+                        className="p-2 text-gray-400 hover:text-white transition"
+                        title="Copy Key"
+                      >
+                        <FaCopy />
+                      </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
-            </motion.div>
+            </div>
           </motion.div>
-        </AnimatePresence>
+        </motion.div>
       )}
 
-      {(!!showRegisterModal && !decryptedKey) &&
-        <AnimatePresence>
+      {(showRegisterModal && !isRegistered) &&
+        <motion.div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <motion.div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            className="relative bg-gradient-to-br from-gray-800/80 to-black/90 border border-gray-700 rounded-3xl p-8 max-w-md w-full shadow-xl text-white"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 24 }}
           >
-            <motion.div
-              className="relative bg-gradient-to-br from-gray-800/80 to-black/90 border border-gray-700 rounded-3xl p-8 max-w-md w-full shadow-xl text-white"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 24 }}
-            >
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-transparent blur-xl opacity-20 pointer-events-none" />
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-transparent blur-xl opacity-20 pointer-events-none" />
 
-              <div className="relative z-10 space-y-6">
-                <h2 className="text-2xl font-bold tracking-wide text-white">
-                  You’re Not Registered
-                </h2>
-                <p className="text-sm mt-2 text-red-500 leading-relaxed">
-                  After registration, you will be provided with a decrypted key, please copy and keep it safe.
-                </p>
+            <div className="relative z-10 space-y-6">
+              <h2 className="text-2xl font-bold tracking-wide text-white">
+                You’re Not Registered
+              </h2>
+              <p className="text-sm mt-2 text-red-500 leading-relaxed">
+                After registration, you will be provided with a decrypted key, please copy and keep it safe.
+              </p>
 
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => setShowRegisterModal(false)}
-                    className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm text-white py-3 bg-gray-500 rounded-2xl shadow-lg transition-all"
-                  >
-                    Close
-                  </button>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowRegisterModal(false)}
+                  className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-sm text-white py-3 bg-gray-500 rounded-2xl shadow-lg transition-all"
+                >
+                  Close
+                </button>
 
-                  <button
-                    onClick={registerWallet}
-                    className="w-full disabled:opacity-50 disabled:cursor-not-allowed py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-2xl shadow-lg transition-all"
-                    disabled={isRegistering}
-                  >
-                    {isRegistering ? "Processing..." : "Register Now"}
-                  </button>
+                <button
+                  onClick={registerWallet}
+                  className="w-full disabled:opacity-50 disabled:cursor-not-allowed py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-2xl shadow-lg transition-all"
+                  disabled={isRegistering}
+                >
+                  {isRegistering ? "Processing..." : "Register Now"}
+                </button>
 
-                </div>
               </div>
-            </motion.div>
+            </div>
           </motion.div>
-        </AnimatePresence>
+        </motion.div>
       }
+
 
       {/* Features Section */}
       <section className="bg-white text-gray-900 py-20 px-6">
