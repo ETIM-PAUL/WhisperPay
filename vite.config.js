@@ -6,7 +6,7 @@ import path from 'path';
 export default defineConfig(({ mode }) => {
   return {
     resolve: {
-      alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }], // Fixed path (removed leading slash)
+      alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],
     },
     define: {
       'process.env': {}
@@ -29,9 +29,22 @@ export default defineConfig(({ mode }) => {
       },
       rollupOptions: {
         output: {
-          manualChunks: undefined,
-          preserveModules: true,
-          preserveModulesRoot: 'src'
+          manualChunks: {
+            vendor: [
+              'react',
+              'react-dom',
+              'react-router-dom',
+              'ethers',
+              'viem',
+              'wagmi'
+            ],
+            ui: [
+              'framer-motion',
+              'react-hot-toast',
+              'react-icons',
+              'react-calendar'
+            ]
+          }
         }
       }
     },
