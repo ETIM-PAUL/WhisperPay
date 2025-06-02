@@ -1,9 +1,8 @@
-# WhisperPay - Privacy First Group Payments
+# WhisperPay - Private and Encrypted Group Payments.
 
+#Demo Video 1 (Registering, Creating Group, Contributing to groups) - https://www.loom.com/share/28d73aa263334137a277e4c40f5b6e36
 
-#Live link - 
-
-#Demo Video -
+#Demo Video 2 (Viewing group transactions as an auditor for transparency) - https://www.loom.com/share/66af187c7e884693a5ac220550222c78
 
 WhisperPay is a decentralized application (dApp) that enables secure, anonymous, and efficient group-based financial coordination using Avalanche Encrypted ERC functionality. Built on the Avalanche blockchain, it provides a privacy-focused solution for group payments, DAO operations, and team fund management.
 
